@@ -227,6 +227,8 @@ function AppContent() {
   const [allSignals, setAllSignals] = useState<RiskSignal[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [relativeTime, setRelativeTime] = useState<string>("");
+  const [lastCollectorRunAt, setLastCollectorRunAt] = useState<Date | null>(null);
+  const [collectorSavedCount, setCollectorSavedCount] = useState<number>(0);
   const systemRelativeTime = !relativeTime
     ? ""
     : relativeTime === "الآن"
@@ -245,6 +247,12 @@ function AppContent() {
     if (diffInHours < 24) return `منذ ${diffInHours} ساعة`;
     return date.toLocaleDateString('ar-EG');
   };
+
+  const collectorRelativeTime = !lastCollectorRunAt
+    ? ""
+    : formatRelativeTime(lastCollectorRunAt) === "الآن"
+      ? "قبل قليل"
+      : formatRelativeTime(lastCollectorRunAt);
 
   useEffect(() => {
     const updateTime = () => setRelativeTime(formatRelativeTime(lastUpdated));
@@ -665,9 +673,21 @@ function AppContent() {
       setAllSignals(signals);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'signals'));
 
+    const collectorDocRef = doc(db, 'system', 'collector');
+    const unsubscribeCollector = onSnapshot(collectorDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as { lastRunAt?: string; savedCount?: number };
+        if (data.lastRunAt) {
+          setLastCollectorRunAt(new Date(data.lastRunAt));
+        }
+        setCollectorSavedCount(typeof data.savedCount === 'number' ? data.savedCount : 0);
+      }
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'system/collector'));
+
     return () => {
       unsubscribeRisk();
       unsubscribeSignals();
+      unsubscribeCollector();
     };
   }, [handleApiError]);
 
@@ -842,6 +862,13 @@ function AppContent() {
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-zinc-900/50 border border-zinc-800 rounded-full text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
                 <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                 {t.lastUpdate}: {systemRelativeTime}
+              </div>
+            )}
+            {collectorRelativeTime && (
+              <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 bg-zinc-900/50 border border-zinc-800 rounded-full text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                آخر جلب أخبار: {collectorRelativeTime}
+                {collectorSavedCount > 0 ? ` • +${collectorSavedCount}` : ""}
               </div>
             )}
             {HAS_GEMINI && (

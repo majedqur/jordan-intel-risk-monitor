@@ -109,6 +109,7 @@ async function saveSignals(signals) {
 }
 
 async function runCollector() {
+  const startedAt = new Date().toISOString();
   console.log(`Collecting news from ${feedUrls.length} feeds...`);
 
   const settled = await Promise.allSettled(feedUrls.map((url) => collectFeed(url)));
@@ -129,11 +130,24 @@ async function runCollector() {
     .slice(0, 50);
 
   const saved = await saveSignals(uniqueSignals);
+  await db.collection('system').doc('collector').set({
+    lastRunAt: new Date().toISOString(),
+    startedAt,
+    feedsCount: feedUrls.length,
+    collectedCount: uniqueSignals.length,
+    savedCount: saved,
+    status: 'success',
+  }, { merge: true });
   console.log(`Collected ${uniqueSignals.length} items, saved ${saved} new signals.`);
 }
 
 if (require.main === module) {
   runCollector().catch((error) => {
+    db.collection('system').doc('collector').set({
+      lastRunAt: new Date().toISOString(),
+      status: 'error',
+      error: error instanceof Error ? error.message : String(error),
+    }, { merge: true }).catch(() => {});
     console.error('Collector failed:', error);
     process.exit(1);
   });
