@@ -207,6 +207,8 @@ const t = {
 };
 
 const ENABLE_BACKGROUND_AI_REFRESH = import.meta.env.VITE_ENABLE_BACKGROUND_AI_REFRESH === 'true';
+const HAS_GEMINI = Boolean(import.meta.env.VITE_GEMINI_API_KEY);
+const ENABLE_ADMIN_LOGIN = import.meta.env.VITE_ENABLE_ADMIN_LOGIN === 'true';
 
 // Mock historical data for initial state
 export default function App() {
@@ -265,6 +267,7 @@ function AppContent() {
   }, []);
 
   const handleLogin = async () => {
+    if (!ENABLE_ADMIN_LOGIN) return;
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
@@ -472,10 +475,22 @@ function AppContent() {
     setUpdatingSignals(true);
     try {
       const signalsColRef = collection(db, 'signals');
-      const q = query(signalsColRef, limit(100));
-      const snap = await getDocs(q);
-      const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
-      await Promise.all(deletePromises);
+      while (true) {
+        const q = query(signalsColRef, limit(100));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          break;
+        }
+
+        const deletePromises = snap.docs.map((d) => deleteDoc(d.ref));
+        await Promise.all(deletePromises);
+
+        if (snap.docs.length < 100) {
+          break;
+        }
+      }
+
       setError("تم مسح كافة الأخبار بنجاح.");
       setTimeout(() => setError(null), 3000);
     } catch (err) {
@@ -559,6 +574,12 @@ function AppContent() {
   }, [handleApiError]);
 
   const smartUpdate = useCallback(async () => {
+    if (!HAS_GEMINI) {
+      setError("التحديث اليدوي بالذكاء الاصطناعي غير مفعّل في النسخة العامة. الأخبار تتحدث تلقائيًا من الخادم.");
+      setTimeout(() => setError(null), 4000);
+      return;
+    }
+
     // A truly smart update: refresh signals and score, but only do full analysis if needed
     await Promise.all([
       refreshSignals(false),
@@ -594,8 +615,10 @@ function AppContent() {
       };
       await setDoc(riskDocRef, initialData);
       setRiskData(initialData);
-      // Trigger a real full update after seeding
-      await fetchData(false);
+
+      if (HAS_GEMINI) {
+        await fetchData(false);
+      }
     }
   }, [fetchData]);
 
@@ -816,18 +839,20 @@ function AppContent() {
                 {t.lastUpdate}: {relativeTime}
               </div>
             )}
-            <button 
-              onClick={() => smartUpdate()}
-              disabled={loading || updatingSignals || updatingScore || (Date.now() - lastManualRefresh < REFRESH_COOLDOWN)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-lg shadow-red-900/40 active:scale-95 border border-red-500/50"
-            >
-              <RefreshCw size={12} className={cn((loading || updatingSignals || updatingScore) && "animate-spin")} />
-              <span className="text-[10px] font-black uppercase tracking-wider">
-                تحديث ذكي
-              </span>
-            </button>
+            {HAS_GEMINI && (
+              <button 
+                onClick={() => smartUpdate()}
+                disabled={loading || updatingSignals || updatingScore || (Date.now() - lastManualRefresh < REFRESH_COOLDOWN)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-lg shadow-red-900/40 active:scale-95 border border-red-500/50"
+              >
+                <RefreshCw size={12} className={cn((loading || updatingSignals || updatingScore) && "animate-spin")} />
+                <span className="text-[10px] font-black uppercase tracking-wider">
+                  تحديث ذكي
+                </span>
+              </button>
+            )}
 
-            {!user ? (
+            {!user && ENABLE_ADMIN_LOGIN ? (
               <button 
                 onClick={handleLogin}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/50 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-full transition-all text-[9px] font-bold uppercase tracking-widest border border-zinc-700/50"
@@ -954,7 +979,7 @@ function AppContent() {
               indicators={riskData?.specialIndicators || []} 
               title={t.specialIndicators} 
               relativeTime={relativeTime}
-              onRefresh={() => refreshScore(true)}
+              onRefresh={HAS_GEMINI ? () => refreshScore(true) : undefined}
               loading={updatingScore}
             />
           </div>
@@ -969,7 +994,7 @@ function AppContent() {
                     signals={allSignals} 
                     title={t.signals} 
                     impactLabel={t.impact} 
-                    onRefresh={() => refreshSignals(true)}
+                    onRefresh={HAS_GEMINI ? () => refreshSignals(true) : undefined}
                     onClear={clearSignals}
                     isAdmin={!!user}
                     loading={updatingSignals}
