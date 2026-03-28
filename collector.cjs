@@ -96,6 +96,45 @@ async function translateToArabic(text) {
   }
 }
 
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function cleanSourceName(source) {
+  return (source || '')
+    .replace(/rss/gi, '')
+    .replace(/google news/gi, '')
+    .replace(/[|•·]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stripSourceFromHeadline(headline, source) {
+  const cleanedHeadline = (headline || '').trim();
+  const cleanedSource = cleanSourceName(source);
+
+  if (!cleanedHeadline || !cleanedSource) {
+    return cleanedHeadline;
+  }
+
+  const parts = cleanedSource
+    .split(/[-–—:]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 3);
+
+  let result = cleanedHeadline;
+
+  for (const part of parts) {
+    const pattern = escapeRegex(part);
+    result = result
+      .replace(new RegExp(`^${pattern}\\s*[-–—:|]+\\s*`, 'i'), '')
+      .replace(new RegExp(`\\s*[-–—:|]+\\s*${pattern}$`, 'i'), '')
+      .trim();
+  }
+
+  return result || cleanedHeadline;
+}
+
 function getSentiment(text) {
   const negativeTerms = ['هجوم', 'قصف', 'تصعيد', 'اشتباك', 'توتر', 'تهديد', 'تحذير', 'حرب'];
   const positiveTerms = ['هدنة', 'اتفاق', 'مفاوضات', 'انفراج', 'تهدئة'];
@@ -167,6 +206,11 @@ function isRelevantSignal(signal) {
 
   const hasRegion = regionTerms.some((term) => text.includes(term));
   const hasRisk = riskTerms.some((term) => text.includes(term));
+  const hasJordan = text.includes('الأردن') || text.includes('jordan') || text.includes('الأردني') || text.includes('jordanian');
+
+  if (hasJordan && hasRisk) {
+    return true;
+  }
 
   if (hasRegion && hasRisk) {
     return true;
@@ -178,11 +222,12 @@ function isRelevantSignal(signal) {
 async function normalizeItem(feedTitle, item) {
   const rawHeadline = (item.title || 'خبر جديد').trim();
   const rawSummary = (item.contentSnippet || item.content || item.summary || rawHeadline).trim();
-  const headline = await translateToArabic(rawHeadline);
+  const translatedHeadline = await translateToArabic(rawHeadline);
   const summary = await translateToArabic(rawSummary);
   const rawTimestamp = item.isoDate || item.pubDate || new Date().toISOString();
   const timestamp = new Date(rawTimestamp).toISOString();
   const source = (feedTitle || item.creator || 'RSS').trim();
+  const headline = stripSourceFromHeadline(translatedHeadline, source);
   const id = crypto
     .createHash('sha1')
     .update(`${source}|${headline}|${timestamp}`)
