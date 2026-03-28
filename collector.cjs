@@ -46,6 +46,56 @@ const feedUrls = (process.env.NEWS_FEEDS || DEFAULT_FEEDS.join(','))
   .map((url) => url.trim())
   .filter(Boolean);
 
+const translationCache = new Map();
+
+function hasArabic(text) {
+  return /[\u0600-\u06FF]/.test(text || '');
+}
+
+async function translateToArabic(text) {
+  const input = (text || '').trim();
+  if (!input || hasArabic(input)) {
+    return input;
+  }
+
+  if (translationCache.has(input)) {
+    return translationCache.get(input);
+  }
+
+  try {
+    const url = new URL('https://translate.googleapis.com/translate_a/single');
+    url.search = new URLSearchParams({
+      client: 'gtx',
+      sl: 'auto',
+      tl: 'ar',
+      dt: 't',
+      q: input,
+    }).toString();
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'jordan-intel-risk-monitor/1.0',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Translation failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const translated = Array.isArray(data?.[0])
+      ? data[0].map((part) => part?.[0] || '').join('').trim()
+      : input;
+
+    const result = translated || input;
+    translationCache.set(input, result);
+    return result;
+  } catch (error) {
+    console.warn('Translation skipped:', error?.message || error);
+    return input;
+  }
+}
+
 function getSentiment(text) {
   const negativeTerms = ['هجوم', 'قصف', 'تصعيد', 'اشتباك', 'توتر', 'تهديد', 'تحذير', 'حرب'];
   const positiveTerms = ['هدنة', 'اتفاق', 'مفاوضات', 'انفراج', 'تهدئة'];
@@ -104,9 +154,11 @@ function isRelevantSignal(signal) {
   return signal.impact >= 7 || signal.sentiment === 'negative';
 }
 
-function normalizeItem(feedTitle, item) {
-  const headline = (item.title || 'خبر جديد').trim();
-  const summary = (item.contentSnippet || item.content || item.summary || headline).trim();
+async function normalizeItem(feedTitle, item) {
+  const rawHeadline = (item.title || 'خبر جديد').trim();
+  const rawSummary = (item.contentSnippet || item.content || item.summary || rawHeadline).trim();
+  const headline = await translateToArabic(rawHeadline);
+  const summary = await translateToArabic(rawSummary);
   const rawTimestamp = item.isoDate || item.pubDate || new Date().toISOString();
   const timestamp = new Date(rawTimestamp).toISOString();
   const source = (feedTitle || item.creator || 'RSS').trim();
@@ -133,7 +185,9 @@ function normalizeItem(feedTitle, item) {
 
 async function collectFeed(url) {
   const feed = await parser.parseURL(url);
-  return (feed.items || []).slice(0, 10).map((item) => normalizeItem(feed.title, item));
+  return Promise.all(
+    (feed.items || []).slice(0, 10).map((item) => normalizeItem(feed.title, item))
+  );
 }
 
 async function saveSignals(signals) {
