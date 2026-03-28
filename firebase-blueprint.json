@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "GlobalRisk": {
+      "title": "Global Risk Data",
+      "description": "Stores the global geopolitical risk analysis for the Middle East.",
+      "type": "object",
+      "properties": {
+        "score": { "type": "number", "description": "Risk score from 0-100" },
+        "trend": { "type": "string", "enum": ["rising", "stable", "falling"] },
+        "explanation": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" },
+        "prediction": { "type": "object" },
+        "analysts": { "type": "array" },
+        "regions": { "type": "array" },
+        "specialIndicators": { "type": "array" }
+      },
+      "required": ["score", "trend", "explanation", "lastUpdated"]
+    },
+    "RiskSignal": {
+      "title": "Risk Signal",
+      "description": "A specific intelligence signal or news item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "source": { "type": "string" },
+        "headline": { "type": "string" },
+        "summary": { "type": "string" },
+        "sentiment": { "type": "string", "enum": ["negative", "neutral", "positive"] },
+        "impact": { "type": "number" },
+        "credibility": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "url": { "type": "string" }
+      },
+      "required": ["id", "headline", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/system/risk": {
+      "schema": "GlobalRisk",
+      "description": "Singleton document for current global risk status."
+    },
+    "/signals": {
+      "schema": "RiskSignal",
+      "description": "Collection of recent intelligence signals."
+    }
+  }
+}
