@@ -187,7 +187,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
 const t = {
   title: "استخبارات مخاطر الشرق الأوسط",
-  lastUpdate: "آخر تحديث",
+  lastUpdate: "آخر مزامنة للنظام",
   analysisSummary: "توليف مخاطر الذكاء الاصطناعي",
   trend: "اتجاه المخاطر",
   confidence: "ثقة الذكاء الاصطناعي",
@@ -227,6 +227,11 @@ function AppContent() {
   const [allSignals, setAllSignals] = useState<RiskSignal[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [relativeTime, setRelativeTime] = useState<string>("");
+  const systemRelativeTime = !relativeTime
+    ? ""
+    : relativeTime === "الآن"
+      ? "تمت الآن"
+      : relativeTime;
 
   const formatRelativeTime = (date: Date | null) => {
     if (!date) return "";
@@ -836,7 +841,7 @@ function AppContent() {
             {lastUpdated && (
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-zinc-900/50 border border-zinc-800 rounded-full text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
                 <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                {t.lastUpdate}: {relativeTime}
+                {t.lastUpdate}: {systemRelativeTime}
               </div>
             )}
             {HAS_GEMINI && (
@@ -922,7 +927,7 @@ function AppContent() {
                     </div>
                     <div className="flex items-center gap-3">
                       {relativeTime && (
-                        <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">{relativeTime}</span>
+                        <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">{systemRelativeTime}</span>
                       )}
                       <span className="text-[8px] text-zinc-600 font-mono">CONFIDENCE: {riskData.score > 70 ? 'HIGH' : 'MODERATE'}</span>
                     </div>
@@ -966,21 +971,21 @@ function AppContent() {
               <AnalystPerspectives 
                 analysts={riskData.analysts} 
                 title={t.analysts}
-                relativeTime={relativeTime}
+                relativeTime={systemRelativeTime}
               />
             )}
 
             {riskData && (
               <PredictionCard 
                 prediction={riskData.prediction} 
-                relativeTime={relativeTime}
+                relativeTime={systemRelativeTime}
               />
             )}
 
             <SpecialIndicators 
               indicators={riskData?.specialIndicators || []} 
               title={t.specialIndicators} 
-              relativeTime={relativeTime}
+              relativeTime={systemRelativeTime}
               onRefresh={HAS_GEMINI ? () => refreshScore(true) : undefined}
               loading={updatingScore}
             />
@@ -1020,7 +1025,7 @@ function AppContent() {
                   <RiskMap 
                   regions={riskData.regions} 
                   title={t.riskMap} 
-                  relativeTime={relativeTime}
+                  relativeTime={systemRelativeTime}
                 />
                 </motion.div>
               )}
