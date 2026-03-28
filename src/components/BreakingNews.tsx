@@ -2,28 +2,11 @@ import React, { useState } from 'react';
 import { RiskSignal } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Radio, AlertCircle, ChevronLeft, ChevronRight, Maximize2, X, Globe, Calendar, ShieldCheck } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, formatSignalExactTime, formatSignalRelativeTime } from '../lib/utils';
 
 interface BreakingNewsProps {
   signals: RiskSignal[];
 }
-
-const getRelativeTime = (timestamp: string) => {
-  try {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (diffInSeconds < 60) return 'الآن';
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `منذ ${diffInMinutes} دقيقة`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `منذ ${diffInHours} ساعة`;
-    return date.toLocaleDateString('ar-EG');
-  } catch (e) {
-    return timestamp;
-  }
-};
 
 export const BreakingNews: React.FC<BreakingNewsProps> = ({ signals }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -74,7 +57,12 @@ export const BreakingNews: React.FC<BreakingNewsProps> = ({ signals }) => {
                     <span className="text-red-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest shrink-0 bg-red-500/5 px-1.5 py-0.5 rounded border border-red-500/10">
                       {currentSignal.source}
                     </span>
-                    <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">{getRelativeTime(currentSignal.timestamp)}</span>
+                    <span
+                      className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest"
+                      title={formatSignalExactTime(currentSignal)}
+                    >
+                      {formatSignalRelativeTime(currentSignal)}
+                    </span>
                     <h4 className="text-zinc-100 text-xs sm:text-sm font-black leading-tight">
                       {currentSignal.headline}
                     </h4>
@@ -167,7 +155,7 @@ export const BreakingNews: React.FC<BreakingNewsProps> = ({ signals }) => {
                     <div className="flex items-center gap-2 text-zinc-500">
                       <Calendar size={12} />
                       <span className="text-[10px] font-bold uppercase tracking-widest">
-                        {getRelativeTime(selectedSignal.timestamp)}
+                        {formatSignalExactTime(selectedSignal)}
                       </span>
                     </div>
                   </div>

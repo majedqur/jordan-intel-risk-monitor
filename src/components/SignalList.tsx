@@ -2,25 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { RiskSignal } from '../types';
 import { AlertTriangle, Info, TrendingUp, TrendingDown, Minus, Globe, Radio, RefreshCw, ExternalLink, Search, Filter, ChevronDown, ChevronUp, ShieldCheck, Zap, Copy, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, formatSignalExactTime, formatSignalRelativeTime } from '../lib/utils';
 import { SignalSkeleton } from './Skeleton';
-
-const getRelativeTime = (timestamp: string) => {
-  try {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (diffInSeconds < 60) return 'الآن';
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `منذ ${diffInMinutes} دقيقة`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `منذ ${diffInHours} ساعة`;
-    return date.toLocaleDateString('ar-EG');
-  } catch (e) {
-    return timestamp;
-  }
-};
 
 interface SignalListProps {
   signals: RiskSignal[];
@@ -263,7 +246,12 @@ export const SignalList: React.FC<SignalListProps> = ({
                         <span className="text-[9px] font-black text-red-500 uppercase tracking-wider bg-red-500/5 px-1.5 py-0.5 rounded">
                           {signal.source}
                         </span>
-                        <span className="text-[8px] text-zinc-500 font-bold">{getRelativeTime(signal.timestamp)}</span>
+                        <span
+                          className="text-[8px] text-zinc-500 font-bold"
+                          title={formatSignalExactTime(signal)}
+                        >
+                          {formatSignalRelativeTime(signal)}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1.5 px-2 py-0.5 bg-zinc-800/50 rounded-full border border-zinc-700/50">

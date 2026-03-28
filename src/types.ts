@@ -7,6 +7,7 @@ export interface RiskSignal {
   impact: number; // 0-10
   credibility: number; // 0-100
   timestamp: string;
+  collectedAt?: string;
   url?: string;
 }
 
