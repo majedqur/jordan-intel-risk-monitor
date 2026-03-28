@@ -907,7 +907,11 @@ function AppContent() {
       </header>
 
       {allSignals.length > 0 && (
-        <BreakingNews signals={allSignals.slice(0, 10)} />
+        <BreakingNews
+          signals={allSignals
+            .filter((signal) => signal.impact >= 7 || signal.sentiment === 'negative')
+            .slice(0, 10)}
+        />
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 relative z-10">

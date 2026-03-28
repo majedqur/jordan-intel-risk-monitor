@@ -61,6 +61,49 @@ function getImpact(text) {
   return Math.min(10, Math.max(3, matches * 2 + 2));
 }
 
+function isRelevantSignal(signal) {
+  const text = `${signal.headline} ${signal.summary}`.toLowerCase();
+
+  const priorityTerms = [
+    'الأردن', 'jordan',
+    'إسرائيل', 'israel',
+    'إيران', 'iran',
+    'غزة', 'gaza',
+    'سوريا', 'syria',
+    'لبنان', 'lebanon',
+    'الحدود', 'border',
+    'الجيش', 'army',
+    'هجوم', 'attack',
+    'قصف', 'strike',
+    'تصعيد', 'escalation',
+    'توتر', 'tension',
+    'تهديد', 'threat',
+    'هدنة', 'ceasefire',
+    'مفاوضات', 'talks'
+  ];
+
+  const blockedTerms = [
+    'المناخ', 'climate',
+    'الصندوق الأخضر', 'green climate',
+    'رياضة', 'sport',
+    'فنان', 'artist',
+    'ترفيه', 'entertainment',
+    'منوعات', 'lifestyle',
+    'ثقافة', 'culture',
+    'تكنولوجيا', 'technology'
+  ];
+
+  if (blockedTerms.some((term) => text.includes(term))) {
+    return false;
+  }
+
+  if (priorityTerms.some((term) => text.includes(term))) {
+    return true;
+  }
+
+  return signal.impact >= 7 || signal.sentiment === 'negative';
+}
+
 function normalizeItem(feedTitle, item) {
   const headline = (item.title || 'خبر جديد').trim();
   const summary = (item.contentSnippet || item.content || item.summary || headline).trim();
@@ -126,6 +169,7 @@ async function runCollector() {
   const uniqueSignals = Array.from(
     new Map(allSignals.map((signal) => [signal.id, signal])).values()
   )
+    .filter(isRelevantSignal)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 50);
 
