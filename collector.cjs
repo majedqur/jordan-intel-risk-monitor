@@ -114,13 +114,16 @@ function getImpact(text) {
 function isRelevantSignal(signal) {
   const text = `${signal.headline} ${signal.summary}`.toLowerCase();
 
-  const priorityTerms = [
+  const regionTerms = [
     'الأردن', 'jordan',
     'إسرائيل', 'israel',
     'إيران', 'iran',
     'غزة', 'gaza',
     'سوريا', 'syria',
-    'لبنان', 'lebanon',
+    'لبنان', 'lebanon'
+  ];
+
+  const riskTerms = [
     'الحدود', 'border',
     'الجيش', 'army',
     'هجوم', 'attack',
@@ -129,12 +132,27 @@ function isRelevantSignal(signal) {
     'توتر', 'tension',
     'تهديد', 'threat',
     'هدنة', 'ceasefire',
-    'مفاوضات', 'talks'
+    'مفاوضات', 'talks',
+    'اعتراض', 'intercept',
+    'صاروخ', 'missile',
+    'مسيرة', 'drone',
+    'أمني', 'security',
+    'دفاع', 'defense',
+    'احتلال', 'occupation',
+    'اشتباك', 'clash',
+    'إنذار', 'warning'
   ];
 
   const blockedTerms = [
     'المناخ', 'climate',
     'الصندوق الأخضر', 'green climate',
+    'الغذاء', 'food',
+    'الدواء', 'medicine',
+    'الاقتصاد', 'economy',
+    'بورصة', 'stock',
+    'الأسعار', 'prices',
+    'شركة', 'company',
+    'سياحة', 'tourism',
     'رياضة', 'sport',
     'فنان', 'artist',
     'ترفيه', 'entertainment',
@@ -147,11 +165,14 @@ function isRelevantSignal(signal) {
     return false;
   }
 
-  if (priorityTerms.some((term) => text.includes(term))) {
+  const hasRegion = regionTerms.some((term) => text.includes(term));
+  const hasRisk = riskTerms.some((term) => text.includes(term));
+
+  if (hasRegion && hasRisk) {
     return true;
   }
 
-  return signal.impact >= 7 || signal.sentiment === 'negative';
+  return (signal.impact >= 8 || signal.sentiment === 'negative') && hasRisk;
 }
 
 async function normalizeItem(feedTitle, item) {
